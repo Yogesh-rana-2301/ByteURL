@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BYTEURL — Fast URL Shortener</title>
+  <meta name="description" content="BYTEURL is a high-performance URL shortener built in C++ with Drogon, PostgreSQL, and Redis." />
+  <link rel="icon" href="./image/byteURL.png" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens ─────────────────────────────────────── */
+    :root {
+      --bg:          #0d0f14;
+      --surface:     #161a23;
+      --surface2:    #1e2330;
+      --border:      rgba(255,255,255,0.07);
+      --accent:      #6c63ff;
+      --accent-glow: rgba(108,99,255,0.25);
+      --accent-dark: #4b44cc;
+      --green:       #34d399;
+      --green-bg:    rgba(52,211,153,0.08);
+      --red:         #f87171;
+      --red-bg:      rgba(248,113,113,0.08);
+      --text:        #e8eaf0;
+      --muted:       #6b7280;
+      --radius-lg:   16px;
+      --radius-md:   10px;
+      --radius-sm:   6px;
+      --transition:  0.18s ease;
+    }
+
+    /* ─── Reset & Base ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Background mesh gradient ──────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 0%,   rgba(108,99,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(52,211,153,0.07) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Layout ─────────────────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 16px;
+      gap: 32px;
+    }
+
+    /* ─── Header ─────────────────────────────────────────────── */
+    .header { text-align: center; }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--green));
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, var(--text), var(--muted));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .tagline {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* ─── Card ───────────────────────────────────────────────── */
+    .card {
+      width: min(580px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+      backdrop-filter: blur(12px);
+    }
+
+    /* ─── Input Row ──────────────────────────────────────────── */
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+    .url-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 13px 16px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .url-input::placeholder { color: var(--muted); }
+    .url-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .btn-primary {
+      padding: 13px 20px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    }
+    .btn-primary:hover  { background: var(--accent-dark); box-shadow: 0 4px 20px var(--accent-glow); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* ─── Error Banner ───────────────────────────────────────── */
+    .error-banner {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--red-bg);
+      border: 1px solid rgba(248,113,113,0.25);
+      border-radius: var(--radius-md);
+      color: var(--red);
+      font-size: 13px;
+    }
+
+    /* ─── Result Panel ───────────────────────────────────────── */
+    .result-panel {
+      display: none;
+      margin-top: 18px;
+      padding: 18px;
+      background: var(--green-bg);
+      border: 1px solid rgba(52,211,153,0.2);
+      border-radius: var(--radius-md);
+    }
+    .result-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 10px;
+    }
+    .result-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .short-link-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      font-family: 'Inter', monospace;
+    }
+    .btn-ghost {
+      padding: 10px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .btn-ghost:hover { background: var(--surface2); border-color: var(--accent); }
+
+    /* ─── Stats Panel ────────────────────────────────────────── */
+    .stats-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 16px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .stats-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .stats-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .stats-loading {
+      font-size: 12px;
+      color: var(--muted);
+      display: none;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .stat-item { }
+    .stat-item .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .stat-item .stat-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .stat-item.full { grid-column: 1 / -1; }
+    .stat-item .stat-value.big {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .btn-stats {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: color var(--transition);
+    }
+    .btn-stats:hover { color: var(--text); }
+
+    /* ─── Footer ─────────────────────────────────────────────── */
+    .footer {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .footer a { color: var(--muted); text-decoration: none; }
+    .footer a:hover { color: var(--text); }
+
+    /* ─── Pill badges (tech stack) ───────────────────────────── */
+    .pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .pill {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    /* ─── Spinner ────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* ─── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .input-row { flex-direction: column; }
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">✂</div>
+      <span class="logo-text">BYTEURL</span>
+    </div>
+    <p class="tagline">High-performance URL shortener · C++ · Drogon · Redis · PostgreSQL</p>
+  </header>
+
+  <!-- Main Card -->
+  <main class="card" role="main">
+    <div class="input-row">
+      <input
+        id="urlInput"
+        class="url-input"
+        type="text"
+        placeholder="https://example.com/some/very/long/url..."
+        aria-label="URL to shorten"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button id="shortenBtn" class="btn-primary">Shorten</button>
+    </div>
+
+    <!-- Error -->
+    <div id="errorBanner" class="error-banner" role="alert" aria-live="polite"></div>
+
+    <!-- Result -->
+    <div id="resultPanel" class="result-panel" aria-live="polite">
+      <div class="result-label">✓ Link shortened</div>
+      <div class="result-row">
+        <input id="shortLinkField" class="short-link-input" type="text" readonly aria-label="Shortened URL" />
+        <button id="copyBtn" class="btn-ghost">Copy</button>
+      </div>
+      <button id="statsBtn" class="btn-stats">View analytics →</button>
+    </div>
+
+    <!-- Stats -->
+    <div id="statsPanel" class="stats-panel" aria-live="polite">
+      <div class="stats-header">
+        <span class="stats-title">Link Analytics</span>
+        <span id="statsLoading" class="stats-loading">Loading…</span>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-label">Total clicks</div>
+          <div id="statHits" class="stat-value big">—</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Created</div>
+          <div id="statCreated" class="stat-value">—</div>
+        </div>
+        <div class="stat-item full">
+          <div class="stat-label">Original URL</div>
+          <div id="statOriginal" class="stat-value" style="font-size:13px;word-break:break-all;font-weight:400;">—</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Tech stack footer -->
+  <footer class="footer">
+    <div class="pills" style="margin-bottom:8px;">
+      <span class="pill">C++20</span>
+      <span class="pill">Drogon</span>
+      <span class="pill">PostgreSQL</span>
+      <span class="pill">Redis</span>
+      <span class="pill">Docker</span>
+    </div>
+    <p>Built with coroutine-based async I/O — every request is non-blocking.</p>
+  </footer>
+
+</div>
+
+<script>
+  /* ── Element refs ───────────────────────────────────────── */
+  const urlInput      = document.getElementById('urlInput');
+  const shortenBtn    = document.getElementById('shortenBtn');
+  const errorBanner   = document.getElementById('errorBanner');
+  const resultPanel   = document.getElementById('resultPanel');
+  const shortLinkField= document.getElementById('shortLinkField');
+  const copyBtn       = document.getElementById('copyBtn');
+  const statsBtn      = document.getElementById('statsBtn');
+  const statsPanel    = document.getElementById('statsPanel');
+  const statsLoading  = document.getElementById('statsLoading');
+  const statHits      = document.getElementById('statHits');
+  const statCreated   = document.getElementById('statCreated');
+  const statOriginal  = document.getElementById('statOriginal');
+
+  let currentShortCode = null; // e.g. "AbC123" (without the "r/" prefix)
+
+  /* ── Show / hide helpers ────────────────────────────────── */
+  function showError(msg) {
+    errorBanner.textContent = msg;
+    errorBanner.style.display = 'block';
+    resultPanel.style.display = 'none';
+    statsPanel.style.display  = 'none';
+  }
+  function hideError() { errorBanner.style.display = 'none'; }
+
+  /* ── Shorten ────────────────────────────────────────────── */
+  async function shorten() {
+    const url = urlInput.value.trim();
+    if (!url) { urlInput.focus(); return; }
+
+    hideError();
+    statsPanel.style.display  = 'none';
+    resultPanel.style.display = 'none';
+
+    shortenBtn.disabled = true;
+    shortenBtn.innerHTML = '<span class="spinner"></span>Working…';
+
+    try {
+      const resp = await fetch('/shorten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        showError(data.error || `Server error ${resp.status}`);
+        return;
+      }
+
+      // data.shortCode is e.g. "r/AbC123"
+      const rawCode = data.shortCode || '';
+      const hash = rawCode.startsWith('r/') ? rawCode.slice(2) : rawCode;
+      currentShortCode = hash;
+
+      const fullLink = `${location.origin}/r/${hash}`;
+      shortLinkField.value = fullLink;
+      resultPanel.style.display = 'block';
+      copyBtn.textContent = 'Copy';
+
+    } catch (err) {
+      showError('Network error: ' + err.message);
+    } finally {
+      shortenBtn.disabled = false;
+      shortenBtn.textContent = 'Shorten';
+    }
+  }
+
+  /* ── Copy ───────────────────────────────────────────────── */
+  copyBtn.addEventListener('click', async () => {
+    const v = shortLinkField.value;
+    if (!v) return;
+    try {
+      await navigator.clipboard.writeText(v);
+    } catch {
+      shortLinkField.select();
+      document.execCommand('copy');
+    }
+    copyBtn.textContent = '✓ Copied';
+    setTimeout(() => copyBtn.textContent = 'Copy', 1400);
+  });
+
+  /* ── Stats ──────────────────────────────────────────────── */
+  statsBtn.addEventListener('click', async () => {
+    if (!currentShortCode) return;
+
+    statsPanel.style.display = 'block';
+    statsLoading.style.display = 'block';
+    statHits.textContent = '—';
+    statCreated.textContent = '—';
+    statOriginal.textContent = '—';
+
+    try {
+      const resp = await fetch(`/stats/${currentShortCode}`);
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        statHits.textContent = 'Error';
+        return;
+      }
+
+      statHits.textContent = Number(data.hits).toLocaleString();
+
+      // Format createdAt as a readable local date
+      if (data.createdAt) {
+        const d = new Date(data.createdAt);
+        statCreated.textContent = isNaN(d)
+          ? data.createdAt
+          : d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+      }
+
+      statOriginal.textContent = data.originalUrl || '—';
+
+    } catch (err) {
+      statHits.textContent = 'Failed';
+    } finally {
+      statsLoading.style.display = 'none';
+    }
+  });
+
+  /* ── Event bindings ─────────────────────────────────────── */
+  shortenBtn.addEventListener('click', shorten);
+  urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') shorten(); });
+</script>
+</body>
+</html>

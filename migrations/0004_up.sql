@@ -1,0 +1,12 @@
+-- Migration 0004: No schema changes required.
+-- The `hits` counter and `created_at` timestamp already exist in the `links` table
+-- from migration 0002. This migration documents the query used by the /stats endpoint.
+--
+-- Query used by postgres::LinkRepository::getStats():
+--
+--   SELECT short_code, original_url, hits, created_at
+--   FROM links
+--   WHERE short_code = $1;
+--
+-- Performance note: short_code is the PRIMARY KEY, so this lookup is O(log n)
+-- via the implicit B-tree index — no additional index is needed.

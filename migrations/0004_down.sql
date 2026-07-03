@@ -1,0 +1,1 @@
+-- Migration 0004 down: nothing to revert.

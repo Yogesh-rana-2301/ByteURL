@@ -1,0 +1,15 @@
+{
+  "listeners": [
+    {
+      "address": "${LISTEN_ADDR}",
+      "port": ${LISTEN_PORT},
+      "https": false,
+      "cert": "",
+      "key": ""
+    }
+  ],
+  "app": {
+    "document_root": "/app/public/"
+  },
+  "threads_num": 12
+}

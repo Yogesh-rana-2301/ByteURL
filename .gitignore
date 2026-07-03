@@ -1,0 +1,37 @@
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Environment & IDE
+.idea/
+.vscode/
+.env
+config.json
+
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+
+# CMake & Make
+CMakeCache.txt
+CMakeFiles/
+Makefile
+*.cmake
+install_manifest.txt
+compile_commands.json
+
+# C++ Object and Library files
+*.o
+*.obj
+*.so
+*.dylib
+*.a
+*.lib
+
+# Drogon/Trantor Dependencies
+_deps/
+logs/
+./public/uploads/
