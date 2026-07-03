@@ -17,11 +17,16 @@ if [ -n "$DATABASE_URL" ]; then
     _raw_db="${_hostinfo#*/}"
     _raw_db="${_raw_db%%\?*}"
 
+    # If the URL didn't contain a port, _raw_port will be the same as _raw_host
+    if [ "$_raw_port" = "$_raw_host" ] || ! echo "$_raw_port" | grep -Eq '^[0-9]+$'; then
+        _raw_port=5432
+    fi
+
     export POSTGRES_HOST="${_raw_host}"
     export POSTGRES_USER="${_raw_user}"
     export POSTGRES_PASSWORD="${_raw_pass}"
     export POSTGRES_DB="${_raw_db}"
-    export DB_PORT="${_raw_port:-5432}"
+    export DB_PORT="${_raw_port}"
 else
     # Fallback to individual PG* vars
     export POSTGRES_HOST="${PGHOST:-localhost}"
@@ -63,7 +68,15 @@ _parse_redis_url() {
     esac
 
     _rhost_port="${_rhost_port%%/*}"    # strip trailing /path
-    echo "${_rhost_port%%:*} ${_rhost_port##*:} $_pass"
+    _h="${_rhost_port%%:*}"
+    _p="${_rhost_port##*:}"
+    
+    # If no port provided, fallback to 6379
+    if [ "$_p" = "$_h" ] || ! echo "$_p" | grep -Eq '^[0-9]+$'; then
+        _p=6379
+    fi
+
+    echo "$_h $_p $_pass"
 }
 
 if [ -n "$APP_REDIS_HOST" ]; then
