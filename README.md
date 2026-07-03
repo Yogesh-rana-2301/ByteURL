@@ -42,7 +42,7 @@ BYTEURL is a production-grade URL shortening service written in **C++20** using 
 
 | Concern | PostgreSQL | Redis |
 |---|---|---|
-| Durability | ✅ Survives restarts | ❌ Lost on restart (by default) |
+| Durability | Survives restarts | Lost on restart (by default) |
 | Latency | ~5–10 ms | ~0.1–1 ms |
 | Role | Source of truth | Read-through cache |
 
@@ -172,27 +172,7 @@ docker-compose up --build
 
 The service will be available at **http://localhost:8080**.
 
----
-
-## Quick Test
-
-```bash
-# Shorten a URL
-curl -s -X POST http://localhost:8080/shorten \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}' | jq
-
-# Follow the redirect
-curl -v http://localhost:8080/r/<code>
-
-# View analytics
-curl -s http://localhost:8080/stats/<code> | jq
-
-# Health check
-curl -s http://localhost:8080/health
-```
-
----
+--- 
 
 ## Database Schema
 
