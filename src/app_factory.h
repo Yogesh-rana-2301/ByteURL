@@ -3,6 +3,7 @@
 
 #include <drogon/drogon.h>
 #include <drogon/orm/DbClient.h>
+#include <drogon/orm/Exception.h>
 #include <drogon/nosql/RedisClient.h>
 
 #include <repositories/postgres/link.h>
