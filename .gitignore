@@ -18,8 +18,7 @@ bin/
 # CMake & Make
 CMakeCache.txt
 CMakeFiles/
-Makefile
-*.cmake
+Makefile 
 install_manifest.txt
 compile_commands.json
 
