@@ -1,18 +1,18 @@
-#ifndef BYTEURL_APP_CONFIG_H
+#ifndef BYTEURL_APP_CONFIG_H   // so that i dont include the file multiple times. 
 #define BYTEURL_APP_CONFIG_H
 
 #include <string>
-#include <dotenv.h>
+#include <dotenv.h> // reads the .env keys 
 #include <drogon/nosql/RedisClient.h>
-#include <netdb.h>
-#include <arpa/inet.h>
+#include <netdb.h>  // linux networking library
+#include <arpa/inet.h> // linux networking library
 #include <cstring>
 #include <stdexcept>
 
-namespace byteurl {
+namespace byteurl {  // to avoid naming conflicts using namespace.
     class AppConfig {
     private:
-        static std::string resolveHostname(const std::string& hostname) {
+        static std::string resolveHostname(const std::string& hostname) { // to resolve, APP_REDIS_HOST=redis
             struct addrinfo hints, *res;
             std::memset(&hints, 0, sizeof(hints));
             hints.ai_family = AF_UNSPEC; // Support both IPv4 and IPv6
@@ -24,7 +24,7 @@ namespace byteurl {
             
             char ipstr[INET6_ADDRSTRLEN];
             void *addr;
-            if (res->ai_family == AF_INET) {
+            if (res->ai_family == AF_INET) { // to check if ip4 or ip6
                 struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
                 addr = &(ipv4->sin_addr);
             } else {
@@ -32,7 +32,7 @@ namespace byteurl {
                 addr = &(ipv6->sin6_addr);
             }
             
-            inet_ntop(res->ai_family, addr, ipstr, sizeof(ipstr));
+            inet_ntop(res->ai_family, addr, ipstr, sizeof(ipstr));   // convert binary ip to text
             freeaddrinfo(res);
             return std::string(ipstr);
         }
